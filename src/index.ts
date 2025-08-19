@@ -1,86 +1,127 @@
-import express from 'express';
+// src/index.ts
+import 'dotenv/config';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 
-import { connectDB } from '@/config/db';
-import { config } from '@/config/env';
-import { specs } from '@/config/swagger';
+// ✅ use relative imports so compiled JS doesn't reference "@/..."
+import { connectDB } from './config/db';
+import { specs } from './config/swagger';
 
-// routes (adjust paths to what you actually have)
-import healthRoutes from '@/routes/health';
-import authRoutes from '@/routes/auth';
-import jobRoutes from '@/routes/jobs';
-import candidateRoutes from '@/routes/candidates';
-import applicationRoutes from '@/routes/applications';
-import accountRoutes from '@/routes/accounts';
-import opportunityRoutes from '@/routes/opportunities';
+// Route modules (adjust if your filenames differ)
+import authRoutes from './routes/auth';
+import accountsRoutes from './routes/accounts';
+import candidatesRoutes from './routes/candidates';
+import jobsRoutes from './routes/jobs';
+import opportunitiesRoutes from './routes/opportunities';
+import applicationsRoutes from './routes/applications';
 
 const app = express();
+const PORT = Number(process.env.PORT) || 4000;
 
-// trust proxy (good for Render)
-app.set('trust proxy', 1);
-
-// security
+// ---------- Security & parsers ----------
 app.use(helmet());
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true }));
 
-// CORS: allow list
-const allowed = new Set(config.corsOrigins);
+// ---------- CORS (register BEFORE routes) ----------
+const allowed = (process.env.CORS_ORIGINS ?? '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 app.use(
   cors({
     origin(origin, cb) {
-      // allow non-browser tools & same-origin
-      if (!origin || allowed.has(origin)) return cb(null, true);
-      return cb(new Error(`CORS blocked: ${origin}`));
+      // Allow non-browser tools (curl/postman) with no Origin
+      if (!origin) return cb(null, true);
+
+      // Always allow localhost/127.0.0.1 during dev (any port)
+      if (
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:')
+      ) {
+        return cb(null, true);
+      }
+
+      // If no CORS_ORIGINS provided, allow all
+      if (allowed.length === 0) return cb(null, true);
+
+      // Whitelist exact matches from env
+      if (allowed.includes(origin)) return cb(null, true);
+
+      return cb(new Error(`CORS blocked for ${origin}`));
     },
-    credentials: true
+    credentials: true, // keep if you use cookies; ok to leave true
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+// Ensure preflight works for any path
+app.options('*', cors());
 
-if (config.nodeEnv !== 'test') {
-  app.use(morgan('combined'));
-}
+// ---------- Rate limit (basic) ----------
+app.use(
+  rateLimit({
+    windowMs: 60 * 1000,
+    limit: 200,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+  })
+);
 
-// docs
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs, {
-  explorer: true,
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'ATS + CRM API'
-}));
+// ---------- Health & Docs ----------
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString() });
+});
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// routes
-app.use('/api/health', healthRoutes);
+// ---------- API routes ----------
 app.use('/api/auth', authRoutes);
-app.use('/api/jobs', jobRoutes);
-app.use('/api/candidates', candidateRoutes);
-app.use('/api/applications', applicationRoutes);
-app.use('/api/accounts', accountRoutes);
-app.use('/api/opportunities', opportunityRoutes);
+app.use('/api/accounts', accountsRoutes);
+app.use('/api/candidates', candidatesRoutes);
+app.use('/api/jobs', jobsRoutes);
+app.use('/api/opportunities', opportunitiesRoutes);
+app.use('/api/applications', applicationsRoutes);
 
-// 404
-app.use('*', (_req, res) => {
-  return res.status(404).json({ error: { message: 'Route not found', code: 'ROUTE_NOT_FOUND' } });
+// ---------- 404 ----------
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found', path: req.originalUrl });
 });
 
-// start
-async function main() {
-  await connectDB();
-  app.listen(config.port, () => {
-    console.log(`🚀 Server on :${config.port}`);
-    console.log(`📚 Docs -> http://localhost:${config.port}/docs`);
+// ---------- Error handler (last) ----------
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  // Optional: log only in dev
+  if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.error(err);
+  }
+  const status = err.status || 500;
+  res
+    .status(status)
+    .json({ error: err.message || 'Internal Server Error', status });
+});
+
+// ---------- Start ----------
+async function start() {
+  await connectDB(); // throws if cannot connect
+  app.listen(PORT, () => {
+    // eslint-disable-next-line no-console
+    console.log(`🚀 Server on :${PORT}`);
+    // eslint-disable-next-line no-console
+    console.log(`📚 Docs -> http://localhost:${PORT}/docs`);
   });
 }
 
-if (require.main === module) {
-  // @ts-ignore - using CommonJS runtime check in TS
-  main().catch((e) => {
-    console.error('❌ Failed to start', e);
-    process.exit(1);
-  });
-}
+start().catch((e) => {
+  // eslint-disable-next-line no-console
+  console.error('❌ Failed to start', e);
+  process.exit(1);
+});
 
 export default app;
