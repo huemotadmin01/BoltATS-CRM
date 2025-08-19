@@ -2,15 +2,23 @@
   "name": "ats-crm-backend",
   "version": "1.0.0",
   "description": "Production-ready REST API for ATS + CRM system",
-  "main": "dist/index.js",
   "private": true,
+  "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node -r module-alias/register dist/index.js",
     "seed": "tsx src/seed.ts"
   },
-  "keywords": ["ats", "crm", "api", "node", "express", "typescript", "mongodb"],
+  "keywords": [
+    "ats",
+    "crm",
+    "api",
+    "node",
+    "express",
+    "typescript",
+    "mongodb"
+  ],
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -19,6 +27,7 @@
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "module-alias": "^2.2.3",
     "mongoose": "^8.0.3",
     "morgan": "^1.10.0",
     "swagger-jsdoc": "^6.2.8",
@@ -37,5 +46,10 @@
     "tsx": "^4.15.7",
     "typescript": "^5.3.3"
   },
-  "engines": { "node": ">=18.0.0" }
+  "_moduleAliases": {
+    "@": "dist"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
