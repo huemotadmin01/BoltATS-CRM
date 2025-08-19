@@ -11,172 +11,91 @@ async function seed() {
   await connectDB();
   console.log('🌱 Starting seed...');
 
-  // Create admin user
-  const adminExists = await User.findOne({ email: 'admin@example.com' });
-  if (!adminExists) {
-    const passwordHash = await bcrypt.hash('admin123', 10);
-    await User.create({
-      email: 'admin@example.com',
-      name: 'Admin User',
-      role: 'Admin',
-      passwordHash
-    });
-    console.log('✅ Admin user created: admin@example.com / admin123');
-  } else {
-    console.log('ℹ️  Admin user already exists');
-  }
+  const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'admin123';
 
-  // Create sample jobs
-  const jobsData = [
-    {
-      title: 'Senior Software Engineer',
-      department: 'Engineering',
-      location: 'San Francisco, CA',
-      employmentType: 'Full-time',
-      skills: ['JavaScript', 'React', 'Node.js', 'TypeScript'],
-      openings: 2,
-      status: 'Active'
-    },
-    {
-      title: 'Product Manager',
-      department: 'Product',
-      location: 'New York, NY',
-      employmentType: 'Full-time',
-      skills: ['Product Strategy', 'Analytics', 'Roadmapping'],
-      openings: 1,
-      status: 'Active'
-    },
-    {
-      title: 'UX Designer',
-      department: 'Design',
-      location: 'Remote',
-      employmentType: 'Full-time',
-      skills: ['Figma', 'User Research', 'Prototyping'],
-      openings: 1,
-      status: 'Active'
-    }
+  // create the 3 demo users the frontend shows
+  const demoUsers: Array<{email: string; name: string; role: 'Admin'|'Recruiter'|'Sales'}> = [
+    { email: 'admin@company.com',     name: 'Admin User',     role: 'Admin' },
+    { email: 'recruiter@company.com', name: 'Recruiter User', role: 'Recruiter' },
+    { email: 'sales@company.com',     name: 'Sales User',     role: 'Sales' },
   ];
 
-  for (const jobData of jobsData) {
-    const exists = await Job.findOne({ title: jobData.title });
-    if (!exists) {
-      await Job.create(jobData);
+  for (const u of demoUsers) {
+    const existing = await User.findOne({ email: u.email });
+    if (!existing) {
+      const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+      await User.create({ ...u, passwordHash });
+      console.log(`✅ User created: ${u.email} / ${DEMO_PASSWORD}`);
+    } else {
+      console.log(`ℹ️  User already exists: ${u.email}`);
     }
   }
+
+  // ----- sample jobs
+  const jobsData = [
+    { title: 'Senior Software Engineer', department: 'Engineering', location: 'San Francisco, CA',
+      employmentType: 'Full-time', skills: ['JavaScript', 'React', 'Node.js', 'TypeScript'], openings: 2, status: 'Active' },
+    { title: 'Product Manager', department: 'Product', location: 'New York, NY',
+      employmentType: 'Full-time', skills: ['Product Strategy', 'Analytics', 'Roadmapping'], openings: 1, status: 'Active' },
+    { title: 'UX Designer', department: 'Design', location: 'Remote',
+      employmentType: 'Full-time', skills: ['Figma', 'User Research', 'Prototyping'], openings: 1, status: 'Active' },
+  ];
+  for (const job of jobsData) if (!(await Job.findOne({ title: job.title }))) await Job.create(job);
   console.log('✅ Sample jobs created');
 
-  // Create sample candidates
+  // ----- sample candidates
   const candidatesData = [
-    {
-      name: 'Alice Johnson',
-      email: 'alice@example.com',
-      phone: '+1-555-0101',
-      skills: ['JavaScript', 'React', 'Python'],
-      experienceYears: 5,
-      currentTitle: 'Frontend Developer',
-      currentCompany: 'TechCorp',
-      tags: ['React Expert', 'Team Lead']
-    },
-    {
-      name: 'Bob Smith',
-      email: 'bob@example.com',
-      phone: '+1-555-0102',
-      skills: ['Product Management', 'Analytics', 'Strategy'],
-      experienceYears: 7,
-      currentTitle: 'Senior Product Manager',
-      currentCompany: 'StartupXYZ',
-      tags: ['B2B', 'Growth']
-    },
-    {
-      name: 'Carol Wilson',
-      email: 'carol@example.com',
-      phone: '+1-555-0103',
-      skills: ['Figma', 'Sketch', 'User Research'],
-      experienceYears: 4,
-      currentTitle: 'UX Designer',
-      currentCompany: 'DesignStudio',
-      tags: ['Mobile Design', 'Research']
-    }
+    { name: 'Alice Johnson', email: 'alice@example.com', phone: '+1-555-0101',
+      skills: ['JavaScript', 'React', 'Python'], experienceYears: 5, currentTitle: 'Frontend Developer',
+      currentCompany: 'TechCorp', tags: ['React Expert', 'Team Lead'] },
+    { name: 'Bob Smith', email: 'bob@example.com', phone: '+1-555-0102',
+      skills: ['Product Management', 'Analytics', 'Strategy'], experienceYears: 7,
+      currentTitle: 'Senior Product Manager', currentCompany: 'StartupXYZ', tags: ['B2B', 'Growth'] },
+    { name: 'Carol Wilson', email: 'carol@example.com', phone: '+1-555-0103',
+      skills: ['Figma', 'Sketch', 'User Research'], experienceYears: 4,
+      currentTitle: 'UX Designer', currentCompany: 'DesignStudio', tags: ['Mobile Design', 'Research'] },
   ];
-
-  for (const candidateData of candidatesData) {
-    const exists = await Candidate.findOne({ email: candidateData.email });
-    if (!exists) {
-      await Candidate.create(candidateData);
-    }
-  }
+  for (const c of candidatesData) if (!(await Candidate.findOne({ email: c.email }))) await Candidate.create(c);
   console.log('✅ Sample candidates created');
 
-  // Create sample accounts
+  // ----- sample accounts
   const accountsData = [
-    {
-      name: 'TechCorp Inc',
-      industry: 'Technology',
-      owner: 'Admin User',
-      notes: 'Large enterprise client with multiple hiring needs'
-    },
-    {
-      name: 'StartupXYZ',
-      industry: 'FinTech',
-      owner: 'Admin User',
-      notes: 'Growing startup, rapid hiring'
-    }
+    { name: 'TechCorp Inc', industry: 'Technology', owner: 'Admin User', notes: 'Large enterprise client with multiple hiring needs' },
+    { name: 'StartupXYZ',   industry: 'FinTech',    owner: 'Admin User', notes: 'Growing startup, rapid hiring' },
   ];
-
-  for (const accountData of accountsData) {
-    const exists = await Account.findOne({ name: accountData.name });
-    if (!exists) {
-      await Account.create(accountData);
-    }
-  }
+  for (const a of accountsData) if (!(await Account.findOne({ name: a.name }))) await Account.create(a);
   console.log('✅ Sample accounts created');
 
-  // Create sample applications (connect candidates to jobs)
+  // ----- sample applications (Alice -> Senior Software Engineer)
   const job = await Job.findOne({ title: 'Senior Software Engineer' });
   const candidate = await Candidate.findOne({ email: 'alice@example.com' });
-  
   if (job && candidate) {
-    const appExists = await Application.findOne({ candidateId: candidate._id, jobId: job._id });
-    if (!appExists) {
+    const exists = await Application.findOne({ candidateId: candidate._id, jobId: job._id });
+    if (!exists) {
       await Application.create({
         candidateId: candidate._id,
         jobId: job._id,
         stage: 'Interview',
         notes: 'Strong technical background, good culture fit',
         stageHistory: [
-          { from: 'New', to: 'Screening', at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), notes: 'Initial screening passed' },
-          { from: 'Screening', to: 'Interview', at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), notes: 'Scheduled technical interview' }
-        ]
+          { from: 'New', to: 'Screening', at: new Date(Date.now() - 5*24*60*60*1000), notes: 'Initial screening passed' },
+          { from: 'Screening', to: 'Interview', at: new Date(Date.now() - 2*24*60*60*1000), notes: 'Scheduled technical interview' },
+        ],
       });
     }
   }
   console.log('✅ Sample applications created');
 
-  // Create sample opportunities
+  // ----- sample opportunity
   const account = await Account.findOne({ name: 'TechCorp Inc' });
-  if (account) {
-    const oppExists = await Opportunity.findOne({ accountId: account._id });
-    if (!oppExists) {
-      await Opportunity.create({
-        accountId: account._id,
-        title: 'Q1 Engineering Team Expansion',
-        stage: 'Qualified',
-        value: 250000,
-        probability: 75
-      });
-    }
+  if (account && !(await Opportunity.findOne({ accountId: account._id }))) {
+    await Opportunity.create({ accountId: account._id, title: 'Q1 Engineering Team Expansion', stage: 'Qualified', value: 250000, probability: 75 });
   }
   console.log('✅ Sample opportunities created');
 
-  console.log('\n🎉 Seed completed successfully!');
-  console.log('\nTest credentials:');
-  console.log('📧 Email: admin@example.com');
-  console.log('🔑 Password: admin123');
-  
+  console.log('\n🎉 Seed complete. Demo logins: admin@company.com, recruiter@company.com, sales@company.com');
+  console.log(`🔑 Password for all: ${DEMO_PASSWORD}\n`);
   process.exit(0);
 }
 
-seed().catch((error) => {
-  console.error('❌ Seed failed:', error);
-  process.exit(1);
-});
+seed().catch((e) => { console.error('❌ Seed failed:', e); process.exit(1); });
