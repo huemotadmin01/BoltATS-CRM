@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: atscrm
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ats-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      MONGODB_URI: mongodb://mongo:27017/atscrm
+      JWT_SECRET: your-secret-key-change-me
+      CORS_ORIGINS: http://localhost:5173
+    ports:
+      - '4000:4000'
+    networks:
+      - ats-network
+    volumes:
+      - ./src:/app/src
+    command: npm run dev
+
+volumes:
+  mongo_data:
+
+networks:
+  ats-network:
+    driver: bridge
