@@ -13,7 +13,18 @@ async function seed() {
 
   const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'admin123';
 
-  // create the 3 demo users the frontend shows
+  // 🔧 Clean up any old demo users that used example.com
+  const oldDemoEmails = [
+    'admin@example.com',
+    'recruiter@example.com',
+    'sales@example.com',
+  ];
+  const cleanup = await User.deleteMany({ email: { $in: oldDemoEmails } });
+  if (cleanup.deletedCount) {
+    console.log(`🧹 Removed old demo users (${cleanup.deletedCount}) using @example.com`);
+  }
+
+  // ✅ Canonical demo users we will keep
   const demoUsers: Array<{email: string; name: string; role: 'Admin'|'Recruiter'|'Sales'}> = [
     { email: 'admin@company.com',     name: 'Admin User',     role: 'Admin' },
     { email: 'recruiter@company.com', name: 'Recruiter User', role: 'Recruiter' },
@@ -40,7 +51,9 @@ async function seed() {
     { title: 'UX Designer', department: 'Design', location: 'Remote',
       employmentType: 'Full-time', skills: ['Figma', 'User Research', 'Prototyping'], openings: 1, status: 'Active' },
   ];
-  for (const job of jobsData) if (!(await Job.findOne({ title: job.title }))) await Job.create(job);
+  for (const job of jobsData) {
+    if (!(await Job.findOne({ title: job.title }))) await Job.create(job);
+  }
   console.log('✅ Sample jobs created');
 
   // ----- sample candidates
@@ -55,7 +68,9 @@ async function seed() {
       skills: ['Figma', 'Sketch', 'User Research'], experienceYears: 4,
       currentTitle: 'UX Designer', currentCompany: 'DesignStudio', tags: ['Mobile Design', 'Research'] },
   ];
-  for (const c of candidatesData) if (!(await Candidate.findOne({ email: c.email }))) await Candidate.create(c);
+  for (const c of candidatesData) {
+    if (!(await Candidate.findOne({ email: c.email }))) await Candidate.create(c);
+  }
   console.log('✅ Sample candidates created');
 
   // ----- sample accounts
@@ -63,10 +78,12 @@ async function seed() {
     { name: 'TechCorp Inc', industry: 'Technology', owner: 'Admin User', notes: 'Large enterprise client with multiple hiring needs' },
     { name: 'StartupXYZ',   industry: 'FinTech',    owner: 'Admin User', notes: 'Growing startup, rapid hiring' },
   ];
-  for (const a of accountsData) if (!(await Account.findOne({ name: a.name }))) await Account.create(a);
+  for (const a of accountsData) {
+    if (!(await Account.findOne({ name: a.name }))) await Account.create(a);
+  }
   console.log('✅ Sample accounts created');
 
-  // ----- sample applications (Alice -> Senior Software Engineer)
+  // ----- sample application (Alice -> Senior Software Engineer)
   const job = await Job.findOne({ title: 'Senior Software Engineer' });
   const candidate = await Candidate.findOne({ email: 'alice@example.com' });
   if (job && candidate) {
@@ -78,7 +95,7 @@ async function seed() {
         stage: 'Interview',
         notes: 'Strong technical background, good culture fit',
         stageHistory: [
-          { from: 'New', to: 'Screening', at: new Date(Date.now() - 5*24*60*60*1000), notes: 'Initial screening passed' },
+          { from: 'New', to: 'Screening',  at: new Date(Date.now() - 5*24*60*60*1000), notes: 'Initial screening passed' },
           { from: 'Screening', to: 'Interview', at: new Date(Date.now() - 2*24*60*60*1000), notes: 'Scheduled technical interview' },
         ],
       });
@@ -89,7 +106,13 @@ async function seed() {
   // ----- sample opportunity
   const account = await Account.findOne({ name: 'TechCorp Inc' });
   if (account && !(await Opportunity.findOne({ accountId: account._id }))) {
-    await Opportunity.create({ accountId: account._id, title: 'Q1 Engineering Team Expansion', stage: 'Qualified', value: 250000, probability: 75 });
+    await Opportunity.create({
+      accountId: account._id,
+      title: 'Q1 Engineering Team Expansion',
+      stage: 'Qualified',
+      value: 250000,
+      probability: 75,
+    });
   }
   console.log('✅ Sample opportunities created');
 
@@ -98,4 +121,7 @@ async function seed() {
   process.exit(0);
 }
 
-seed().catch((e) => { console.error('❌ Seed failed:', e); process.exit(1); });
+seed().catch((e) => {
+  console.error('❌ Seed failed:', e);
+  process.exit(1);
+});
